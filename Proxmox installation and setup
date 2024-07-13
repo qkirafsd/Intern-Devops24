@@ -16,3 +16,19 @@ Select MAC address
 Give Host address
 Click Install 
 Once it is completed, system will get rebooted automatically 
+
+
+/**************USER CREATION************************************/
+We have 2 realm pam & proxmox user, both can access GUI
+If we create pam user password will not be there and it will not listed in /etc/passwd
+If we create proxmox user, we can create password but can't able to access linux
+To resolve this : create pam user in GUI 
+login to CLI with root access give below commands
+adduser admin
+add user and set password and other details
+now user can able to access both cli and gui, but still access to all options won't be available
+To get full access: add 'new group' with admin name, click on create
+Now click on "permissions"; add "group permissions"
+give path /, select group, give 'role' click add
+Final step: Go back to user, 'edit' assign group to that user.
+Check access with new user login, you can now able to access all VM's and options
