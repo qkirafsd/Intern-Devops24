@@ -1,0 +1,136 @@
+/**********PROXMOX INSTALLATION STEPS IN SERVER(Homelab):****************/
+1.Get Proxmox iso image from https://www.proxmox.com/en/downloads 
+2.Flash the image to aflash drive
+3.Plugin monitor and keyboard/mouse to the server(respective VM).
+4.Insert Flash drive to Server USB slot
+5.Press Ctrl + Alt + delete to reboot the system 
+6.A screen with some options will display at top of the screen. Select Boot Manager - F11(Press F11 for boot)
+7.Select “One- Shot UEFI Boot manager”
+And then select “Disk connected to front USB1:USB Flash drive”
+8.Select “Install Proxmox (graphical)”
+9.Enter the server details from here.
+10.Select options “ZFS (RAID1)” (Storage details)-Delect all and select only required harddisks
+11.Enter password and email id
+12.Click on Next, Select location
+Select MAC address
+Give Host address
+Click Install 
+Once it is completed, system will get rebooted automatically 
+
+/************Initial Setup for updates**************/
+1.Once system gets rebooted, proxmox cli will be launched and gui address will be displayed.
+2.Access proxmox gui using the ip address
+3.login with root user id and password
+4.select datacenter --> navigate to 'repositories' under 'updates'.
+5.select enterprise.proxmox repo's and 'delete' them.
+6.'Add' no-subscription repo
+7.ignore message 'The no-subscription repository is not recommended to production use!'.
+8.Now click on Node --> Updates --> refresh and then 'upgrade' 
+
+/**************USER CREATION************************************/
+We have 2 realm pam & proxmox user, both can access GUI
+If we create pam user password will not be there and it will not listed in /etc/passwd
+If we create proxmox user, we can create password but can't able to access linux
+To resolve this : create pam user in GUI 
+login to CLI with root access give below commands
+`adduser admin`
+add user and set password and other details
+now user can able to access both cli and gui, but still access to all options won't be available
+To get full access: add 'new group' with admin name, click on create
+Now click on "permissions"; add "group permissions"
+give path /, select group, give 'role' click add
+Final step: Go back to user, 'edit' assign group to that user.
+Check access with new user login, you can now able to access all VM's and options
+
+/*************Ceph: Installation & Configuration******************/
+1.Select Node/Datacentre --> select 'Ceph' --> 'Install Ceph'
+2.select 'reef' and repository 'No-subscription' --> Start reef installation
+configuration:
+3.Give public ip address, keep remaining settings as is
+4.Naviagate to next step --> Installation 'Finish'
+
+/************Ceph: Create OSD Volumes***********************/
+1.Navigate Node/Datacentre --> Ceph --> OSD
+2.Select disk, keep settings as default and then click 'Create'
+3.Repeat 2nd step for all disks
+
+/*************Ceph: Create Pool****************************/
+1.Navigate Node/Datacentre --> Ceph --> Pools
+2.Click on 'Create' --> Enter 'Name' --> Keep remaining as default 
+3.And then click on 'Create'
+
+/***************Create and Join Cluster*********************/
+Main node:
+1.Select 'Datacentre'--> click on'Cluster' 
+2.Click on 'Create Cluster'
+3.Enter Cluster name --> CREATE
+4.click on 'Join Information' --> Copy info
+Another node:
+5.Select 'Datacentre'--> click on'Cluster' 
+6.Join Cluster --> paste 'join info of main node'
+
+/****************Remove Cluster Configuration from a Node********/
+1.Navigate to Cluster main node--> Shell(Console)
+2.Use below commands 
+`systemctl stop pve-cluster corosync`
+`pmxcfs -l`
+`rm /etc/corosync/*`
+`rm /etc/pve/corosync.conf`
+`killall pmxcfs`
+`systemctl start pve-cluster`
+Using above commands we can remove only configuration and cluster but still nodes info with deactivation state is present. which prevents to add into cluster again or creating new cluster.
+To remove the nodes info permenantely, delete the nodes and info from `/etc/pve/nodes` by using commands ls, rm and rmdir
+
+/****************Adding storage to Proxmox Cluster***************/
+1.Navigate to Datacentre --> Storage
+2.You can add/edit/remove storage 
+Create NFS Share storage in TrueNAS server, enter details here
+Make sure to add correct server name and file name(at export )
+If you get permissions issue --> create new user 'proxmox' and add it fr respective dataset.
+
+/******************Create VM in Proxmox************************/
+Note :  If you would like to create a VM in Ceph storage, make sure that you enable permissions for 'root'/ respective user in that Volume permissions.
+steps and command in creating VM, VM Template and converting it back to VM:
+# Step 1: Creating the Ubuntu VM
+Update Ubuntu Instance:
+🌟sudo apt update && sudo apt dist-upgrade
+Install QEMU Guest Agent:
+🌟sudo apt install qemu-guest-agent
+Check QEMU Guest Agent Status:
+🌟systemctl status qemu-guest-agent.service
+- If it’s not running, go to the Proxmox GUI, select the VM, navigate to "Options", and enable "QEMU Guest Agent". Then, power off the system and start it again.
+Start the QEMU Guest Agent Service:
+🌟sudo systemctl start qemu-guest-agent.service
+- Check the status again to ensure it’s running smoothly. Now, you can start installing the web servers or any other software you need.
+
+# Step 2: Converting VM to Template
+Before converting your VM to a template, ensure that certain configurations are unique to each VM:
+Install Cloud-Init(if not already installed):
+🌟apt search cloud-init
+🌟sudo apt install cloud-init
+Remove Host Keys:
+🌟cd /etc/ssh
+🌟sudo rm ssh_host_*
+Empty the Machine ID:
+🌟sudo truncate -s 0 /etc/machine-id
+- Check if the symbolic link is pointing to the machine ID, if not, create it:
+🌟ls -l /var/lib/dbus/machine-id
+🌟sudo ln -s /etc/machine-id /var/lib/dbus/machine-id
+Clean the Template:
+🌟sudo apt clean
+🌟sudo apt autoremove
+ - Power off the system and convert it into a template in the Proxmox GUI. Add your Cloud-Init configuration (username, password, storage), and regenerate the image.
+
+# Step 3: Creating a VM from the Template
+Change the Hostname:
+🌟sudo nano /etc/hostname
+🌟sudo nano /etc/hosts
+Reboot the System:
+🌟sudo reboot
+
+/*******************Resource****************/
+https://lnkd.in/gVDAutYj
+https://lnkd.in/gq7RvS5G 
+https://youtu.be/5j0Zb6x_hOk?si=aK1e7g3NxV7uYZtZ
+
+
